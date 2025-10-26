@@ -4,18 +4,17 @@
 """
 Sudoku tester file.
 
-Usage: python3 sudoku_tester.py
+Usage:
+    python3 sudoku_tester.py
 
 Notes:
-    * This file expects a file named 'sudokus_start.txt' to be in the same directory, which
-    contains one Sudoku puzzle per line
-    * There should also be a corresponding 'sudokus_finish.txt' with solutions to the puzzles
-    * Do NOT submit this file, only submit sudoku.py and README.txt
-
-TO-DO: Time your run of the sudoku boards
+    * Expects 'sudokus_start.txt' and 'sudokus_finish.txt' in the same directory.
+    * Do NOT submit this file — only submit sudoku.py and README.txt.
 """
 
 import sys
+import time
+import statistics
 from sudoku import *
 
 def main():
@@ -24,83 +23,65 @@ def main():
         sys.exit(1)
     
     try:
-        #  Read boards from test and solution files
-        test_filename = "sudokus_start.txt"
-        sol_filename = "sudokus_finish.txt"
-        testfile = open(test_filename, "r")
-        solfile = open(sol_filename, "r")
+        # Read puzzles and solutions
+        with open("sudokus_start.txt", "r") as testfile, open("sudokus_finish.txt", "r") as solfile:
+            puzzles = testfile.read().strip().split("\n")
+            solutions = solfile.read().strip().split("\n")
 
-        try:
-            test_list = testfile.read()
-        except:
-            print("Error reading the sudoku file %s" % test_list)
-            exit()
-        
-        try:
-            sol_list = solfile.read()
-        except:
-            print("Error reading the sudoku file %s" % sol_list)
-            exit()
-
-        # Setup puzzles and solutions
-        puzzles = test_list.split("\n")
-        solutions = sol_list.split("\n")
-
-        # Solve each board using backtracking
         test_no = 1
-        successes = []
-        failures = []
-        skips = []
-        for puzzle_no in range(len(puzzles)):
-            puzzle = puzzles[puzzle_no]
+        successes, failures, skips = [], [], []
+        runtimes = []
 
-            if len(puzzle) < 9:
+        for puzzle_no, puzzle in enumerate(puzzles):
+            if len(puzzle) < 81:
                 skips.append(test_no)
                 test_no += 1
                 continue
 
-            # Parse boards to dict representation, scanning board L to R, Up to Down
-            board = { ROW[r] + COL[c]: int(puzzle[9*r+c])
-                      for r in range(9) for c in range(9)}
+            # Parse puzzle into board dictionary
+            board = {ROW[r] + COL[c]: int(puzzle[9*r + c]) for r in range(9) for c in range(9)}
 
-            # Print starting board. TODO: Uncomment this for debugging.
-            # print_board(board)
-
-            # Solve with backtracking
+            # Time the solver
+            start_time = time.time()
             solved_board = backtracking(board)
+            end_time = time.time()
+            runtimes.append(end_time - start_time)
 
-            # Print solved board. TODO: Uncomment this for debugging.
-            # print_board(solved_board)
-
-            if board_to_string(solved_board) == solutions[puzzle_no]:
+            # Verify solution correctness
+            solved_str = board_to_string(solved_board)
+            if solved_str == solutions[puzzle_no]:
                 successes.append(test_no)
             else:
-                failures.append((test_no, solved_board))
+                failures.append((test_no, solved_str))
             test_no += 1
 
-        # Print results
+        # === Summary Report ===
         print("=== Sudoku Test Results ===")
+        print(f"Test case count: {test_no - 1}")
+        print(f"Successes:\t {len(successes)}")
+        print(f"Failures:\t {len(failures)}")
+        print(f"Skipped:\t {len(skips)}")
 
-        print("Test case count: %d" % (test_no - 1))
+        # === Runtime Stats ===
+        if runtimes:
+            print("\n=== Runtime Statistics (seconds) ===")
+            print(f"Min:  {min(runtimes):.4f}")
+            print(f"Max:  {max(runtimes):.4f}")
+            print(f"Mean: {statistics.mean(runtimes):.4f}")
+            if len(runtimes) > 1:
+                print(f"Std Dev: {statistics.stdev(runtimes):.4f}")
+            else:
+                print("Std Dev: 0.0000")
 
-        print("Successes:\t %d" % len(successes))
+        # === Failure Details (if any) ===
+        if failures:
+            print("\n=== Failed Boards ===")
+            for fnum, board_str in failures:
+                print(f"  Board #{fnum}: {board_str}")
 
-        if len(failures) == 0:
-            print("Failures:\t 0")
-        else:
-            print("Failures:")
-            for failure in failures:
-                print("    - Board #%d\t- got %s" % (failure[0], board_to_string(failure[1])))
-
-        if len(skips) == 0:
-            print("Skipped:\t 0")
-        if len(skips) > 0:
-            print("Skipped:")
-            for skip in skips:
-                print("    - %d" % skip)
     except FileNotFoundError:
-        print("Error: 'sudokus_start.txt' file not found.")
-        exit()
+        print("Error: Missing 'sudokus_start.txt' or 'sudokus_finish.txt' file.")
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
